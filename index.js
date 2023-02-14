@@ -63,9 +63,14 @@ app.get(/.*/, async (req, res) => {
 				} else {
 					// file
 					if (name.includes('/')) return;
+					
 					let size = parseInt(file.metadata.size, 10);
 					size = Math.round(size/(1024*1024))+' MB';
-					return `<tr><td><a href="${name}">${name}</a></td><td>${size}</td><td>${file.metadata.timeCreated}</td><tr>`;
+
+					let date = file.metadata.timeCreated;
+					date = date.slice(0,10)+' '+date.slice(11,19);
+
+					return `<tr><td><a href="${name}">${name}</a></td><td>${size}</td><td>${date}</td><tr>`;
 				}
 			})
 			.filter(f => f);
@@ -74,8 +79,9 @@ app.get(/.*/, async (req, res) => {
 					'<head>',
 						'<style>',
 							'body { font-family: sans-serif }',
-							'table { border-spacing: 5px; }',
-							'table td:nth-child(2) { text-align: right }',
+							'table { border-spacing: 2px; }',
+							'table th { border-bottom: 1px solid #aaa }',
+							'table td:nth-child(2) { text-align: right; padding: 0 20px }',
 						'</style>',
 					'</head>',
 					'<body>',
