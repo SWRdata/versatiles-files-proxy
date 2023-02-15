@@ -68,16 +68,25 @@ app.get(/.*/, async (req, res) => {
 				res.set('Content-Length', end - start + 1);
 				//console.log(res);
 				res.status(206);
-				console.log('puzzle out: 206', JSON.stringify(res._headers));
+				console.log('puzzle out: 206a', JSON.stringify(res._headers));
 				file.createReadStream({ start, end }).pipe(res);
 			} else {
 				// handle normal requests
 
-				res.set('Content-Length', size);
+				//res.set('Content-Length', size);
+				//res.status(200);
+				//console.log('puzzle out: 200', JSON.stringify(res._headers));
+				//file.createReadStream().pipe(res);
+
+				let start = 0;
+				let end = 2*1024*1024;
+
+				res.set('Content-Range', `bytes ${start}-${end}/${size}`);
+				res.set('Content-Length', end - start + 1);
 				//console.log(res);
-				res.status(200);
-				console.log('puzzle out: 200', JSON.stringify(res._headers));
-				file.createReadStream().pipe(res);
+				res.status(206);
+				console.log('puzzle out: 206b', JSON.stringify(res._headers));
+				file.createReadStream({ start, end }).pipe(res);
 			}
 		}
 
