@@ -44,7 +44,9 @@ app.get(/.*/, async (req, res) => {
 			let [metadata] = (await file.getMetadata());
 			let { size, contentType, etag } = metadata;
 
-			res.set('Cache-Control', 'public, max-age=' + (86400 * 7));
+			//res.set('Cache-Control', 'public, max-age=' + (86400 * 7));
+			res.set('Cache-Control', 'public, max-age=0'); // <--- DELETE ME
+
 			res.set('Accept-Ranges', 'bytes');
 			res.set('Content-Type', contentType || 'application/octet-stream');
 			if (etag) res.set('ETag', etag);
