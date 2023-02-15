@@ -142,6 +142,10 @@ app.get(/.*/, async (req, res) => {
 	}
 })
 
+app.all(/.*/, async (req, res) => {
+	console.log('puzzle other in:', req.method, JSON.stringify(req.headers));
+})
+
 const PORT = process.env.PORT || 8080;
 
 app.listen(PORT, () => console.log(`listening on port ${PORT}`));
