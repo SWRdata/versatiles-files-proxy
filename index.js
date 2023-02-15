@@ -34,18 +34,37 @@ app.get(/.*/, async (req, res) => {
 			if (!(await file.exists())[0]) return sendError404()
 
 			let [metadata] = (await file.getMetadata());
-			let headers = {
-				'cache-control': 'max-age=' + (86400 * 7),
+			let { size, contentType, etag } = metadata;
+
+			res.set('cache-control', 'max-age=' + (86400 * 7));
+			res.set('accept-ranges', 'bytes');
+			res.set('content-type', contentType || 'application/octet-stream');
+			if (etag) res.set('etag', etag);
+
+			let range = req.range();
+			if (range) {
+				// handle range requests
+				let { start, end } = range[0];
+
+				if ((start > end) || (end >= size)) {
+					// handle invalid range requests
+					res.status(416);
+					res.set('content-range', `bytes */${size}`);
+					res.end();
+					return;
+				}
+
+				res.set('content-range', `bytes ${start}-${end}/${size}`);
+				res.set('content-length', end - start + 1);
+				res.status(206);
+				file.createReadStream({ start, end }).pipe(res);
+			} else {
+				// handle normal requests
+
+				res.set('content-length', size);
+				res.status(200);
+				file.createReadStream().pipe(res);
 			}
-
-			if (metadata.contentType) headers['content-type'] = metadata.contentType;
-			if (metadata.size) headers['content-length'] = metadata.size;
-			if (metadata.etag) headers['etag'] = metadata.etag;
-
-			res.set(headers);
-			res.status(200);
-
-			file.createReadStream().pipe(res);
 		}
 
 		async function sendFileList() {
@@ -57,39 +76,39 @@ app.get(/.*/, async (req, res) => {
 				if (name.length === 0) return;
 
 				if (name.endsWith('/')) {
-					// folder
-					if (name.slice(0,-1).includes('/')) return;
+					// handle folder
+					if (name.slice(0, -1).includes('/')) return;
 					return `<tr><td><a href="${name}">${name}</a></td><td></td><td></td><tr>`;
 				} else {
-					// file
+					// handle file
 					if (name.includes('/')) return;
-					
+
 					let size = parseInt(file.metadata.size, 10);
-					size = Math.round(size/(1024*1024))+' MB';
+					size = Math.round(size / (1024 * 1024)) + ' MB';
 
 					let date = file.metadata.timeCreated;
-					date = date.slice(0,10)+' '+date.slice(11,19);
+					date = date.slice(0, 10) + ' ' + date.slice(11, 19);
 
 					return `<tr><td><a href="${name}">${name}</a></td><td>${size}</td><td>${date}</td><tr>`;
 				}
 			})
-			.filter(f => f);
+				.filter(f => f);
 			let html = [
 				'<html>',
-					'<head>',
-						'<style>',
-							'body { font-family: sans-serif }',
-							'table { border-spacing: 2px; }',
-							'table th { border-bottom: 1px solid #aaa }',
-							'table td:nth-child(2) { text-align: right; padding: 0 20px }',
-						'</style>',
-					'</head>',
-					'<body>',
-					'<table>',
-					'<tr><th>filename</th><th>size</th><th>date</th></tr>',
-					...files,
-					'</table>',
-					'</body>',
+				'<head>',
+				'<style>',
+				'body { font-family: sans-serif }',
+				'table { border-spacing: 2px; }',
+				'table th { border-bottom: 1px solid #aaa }',
+				'table td:nth-child(2) { text-align: right; padding: 0 20px }',
+				'</style>',
+				'</head>',
+				'<body>',
+				'<table>',
+				'<tr><th>filename</th><th>size</th><th>date</th></tr>',
+				...files,
+				'</table>',
+				'</body>',
 				'</html>',
 			].join('\n');
 			res.status(200).send(html);
