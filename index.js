@@ -16,7 +16,7 @@ app.get('/healthcheck', (serverRequest, serverResponse) => {
 })
 
 app.get(/.*/, async (req, res) => {
-	console.log(JSON.stringify(req.headers));
+	console.log('puzzle in: '+JSON.stringify(req.headers));
 
 	let path = ('' + req.path).trim().replace(/^\/+/gi, '');
 	path = decodeURI(path);
@@ -33,13 +33,12 @@ app.get(/.*/, async (req, res) => {
 		return;
 
 		async function sendFile(prefix) {
-			const MAX_RANGE_LENGTH = 30 * 1024 * 1024;
 
 			let file = bucket.file(prefix);
 
 			if (!(await file.exists())[0]) {
 				// try list view 
-				return await sendFileList(prefix + '/');
+				return await sendFileList(prefix+'/');
 			}
 
 			let [metadata] = (await file.getMetadata());
@@ -50,30 +49,34 @@ app.get(/.*/, async (req, res) => {
 			res.set('Content-Type', contentType || 'application/octet-stream');
 			if (etag) res.set('ETag', etag);
 
-
-			let start = 0, end = size - 1;
-
 			let range = req.range();
 			if (range) {
 				// handle range requests
-				start = range[0].start;
-				end = range[0].end;
+				let { start, end } = range[0];
+
+				if ((start > end) || (end >= size)) {
+					// handle invalid range requests
+					res.status(416);
+					res.set('Content-Range', `bytes */${size}`);
+					res.end();
+					return;
+				}
+
+				res.set('Content-Range', `bytes ${start}-${end}/${size}`);
+				res.set('Content-Length', end - start + 1);
+				//console.log(res);
+				res.status(206);
+				console.log('puzzle out: 206', JSON.stringify(res._headers));
+				file.createReadStream({ start, end }).pipe(res);
+			} else {
+				// handle normal requests
+
+				res.set('Content-Length', size);
+				//console.log(res);
+				res.status(200);
+				console.log('puzzle out: 200', JSON.stringify(res._headers));
+				file.createReadStream().pipe(res);
 			}
-
-			if ((start > end) || (end >= size)) {
-				// handle invalid range requests
-				res.status(416);
-				res.set('Content-Range', `bytes */${size}`);
-				res.end();
-				return;
-			}
-
-			if (end > start - MAX_RANGE_LENGTH - 1) end = start - MAX_RANGE_LENGTH - 1
-
-			res.set('Content-Range', `bytes ${start}-${end}/${size}`);
-			res.set('Content-Length', end - start + 1);
-			res.status(206);
-			file.createReadStream({ start, end }).pipe(res);
 		}
 
 		async function sendFileList(prefix) {
@@ -132,7 +135,7 @@ app.get(/.*/, async (req, res) => {
 			return res.status(404).type('text').send(`file not found`)
 		}
 	} catch (error) {
-		console.error({ prefix, error });
+		console.error({ path, error });
 		return res.status(500).type('text').send('Internal Server Error');
 	}
 })
