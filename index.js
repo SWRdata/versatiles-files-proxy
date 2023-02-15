@@ -16,7 +16,8 @@ app.get('/healthcheck', (serverRequest, serverResponse) => {
 })
 
 app.get(/.*/, async (req, res) => {
-	console.log({req, headers:req.headers});
+	console.log(JSON.stringify(req.headers));
+	
 	let path = ('' + req.path).trim().replace(/^\/+/gi, '');
 	path = decodeURI(path);
 	try {
