@@ -24,14 +24,19 @@ app.get(/.*/, async (req, res) => {
 		if (path === '') path = '/';
 
 		if (path.endsWith('/')) {
-			return await sendFileList();
+			await sendFileList(prefix);
 		} else {
-			return await sendFile();
+			await sendFile(prefix);
 		}
+		return;
 
-		async function sendFile() {
+		async function sendFile(prefix) {
 			let file = bucket.file(prefix);
-			if (!(await file.exists())[0]) return sendError404()
+
+			if (!(await file.exists())[0]) {
+				// try list view 
+				return await sendFileList(prefix+'/');
+			}
 
 			let [metadata] = (await file.getMetadata());
 			let { size, contentType, etag } = metadata;
@@ -67,8 +72,13 @@ app.get(/.*/, async (req, res) => {
 			}
 		}
 
-		async function sendFileList() {
+		async function sendFileList(prefix) {
 			let [files] = await bucket.getFiles({ prefix, autoPaginate: false, maxResults: 1000 });
+
+			if (files.length === 0) {
+				return sendError404();
+			}
+
 			files = files.map(file => {
 				let name = file.name;
 				if (!name.startsWith(prefix)) return;
@@ -118,7 +128,7 @@ app.get(/.*/, async (req, res) => {
 			return res.status(404).type('text').send(`file not found`)
 		}
 	} catch (error) {
-		console.error({ path, error });
+		console.error({ prefix, error });
 		return res.status(500).type('text').send('Internal Server Error');
 	}
 })
