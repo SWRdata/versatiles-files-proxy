@@ -42,10 +42,10 @@ app.get(/.*/, async (req, res) => {
 			let [metadata] = (await file.getMetadata());
 			let { size, contentType, etag } = metadata;
 
-			res.set('cache-control', 'max-age=' + (86400 * 7));
-			res.set('accept-ranges', 'bytes');
-			res.set('content-type', contentType || 'application/octet-stream');
-			if (etag) res.set('etag', etag);
+			res.set('Cache-Control', 'public, max-age=' + (86400 * 7));
+			res.set('Accept-Ranges', 'bytes');
+			res.set('Content-Type', contentType || 'application/octet-stream');
+			if (etag) res.set('ETag', etag);
 
 			let range = req.range();
 			if (range) {
@@ -55,19 +55,19 @@ app.get(/.*/, async (req, res) => {
 				if ((start > end) || (end >= size)) {
 					// handle invalid range requests
 					res.status(416);
-					res.set('content-range', `bytes */${size}`);
+					res.set('Content-Range', `bytes */${size}`);
 					res.end();
 					return;
 				}
 
-				res.set('content-range', `bytes ${start}-${end}/${size}`);
-				res.set('content-length', end - start + 1);
+				res.set('Content-Range', `bytes ${start}-${end}/${size}`);
+				res.set('Content-Length', end - start + 1);
 				res.status(206);
 				file.createReadStream({ start, end }).pipe(res);
 			} else {
 				// handle normal requests
 
-				res.set('content-length', size);
+				res.set('Content-Length', size);
 				res.status(200);
 				file.createReadStream().pipe(res);
 			}
