@@ -32,7 +32,6 @@ app.listen(PORT, () => console.log(`listening on port ${PORT}`));
 
 
 async function sendFile(path, req, res) {
-
 	let file = bucket.file(path);
 
 	if (!(await file.exists())[0]) {
@@ -55,12 +54,14 @@ async function sendFile(path, req, res) {
 
 		if ((start > end) || (end >= size)) {
 			// handle invalid range requests
+			console.log('sendFile: 416', path);
 			res.status(416);
 			res.set('content-range', `bytes */${size}`);
 			res.end();
 			return;
 		}
 
+		console.log('sendFile: 206', path);
 		res.set('content-range', `bytes ${start}-${end}/${size}`);
 		res.set('content-length', end - start + 1);
 		//console.log(res);
@@ -68,6 +69,7 @@ async function sendFile(path, req, res) {
 		file.createReadStream({ start, end }).pipe(res);
 	} else {
 		// handle normal requests
+		console.log('sendFile: 200', path);
 
 		res.set('transfer-encoding', 'chunked');
 		res.status(200);
@@ -133,6 +135,7 @@ async function sendFileList(path, res) {
 		'</html>',
 	].join('\n');
 
+	console.log('sendFileList: 200', path);
 	res.set('cache-control', 'public, max-age=300');
 	res.set('content-type', 'text/html');
 	res.status(200).send(html);
