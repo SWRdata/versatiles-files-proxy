@@ -15,7 +15,7 @@ app.get(/.*/, async (req, res) => {
 
 	try {
 
-		if (path.endsWith('/')) {
+		if ((path.length === 0) || path.endsWith('/')) {
 			await sendFileList(prefix, res);
 		} else {
 			await sendFile(prefix, req, res);
@@ -39,7 +39,7 @@ async function sendFile(prefix, req, res) {
 
 	if (!(await file.exists())[0]) {
 		// try list view 
-		return await sendFileList(prefix + '/');
+		return await sendFileList(prefix + '/', res);
 	}
 
 	let [metadata] = (await file.getMetadata());
