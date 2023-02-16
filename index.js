@@ -76,7 +76,7 @@ async function sendFile(path, req, res) {
 }
 
 async function sendFileList(path, res) {
-	let [files] = await bucket.getFiles({ prefix: path, autoPaginate: false, maxResults: 1000 });
+	let [files] = await bucket.getFiles({ prefix: path, autoPaginate: false, maxResults: 10000 });
 
 	if (files.length === 0) {
 		return res.status(404).type('text').send(`file not found`)
