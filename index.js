@@ -8,15 +8,8 @@ const bucket = storage.bucket('versatiles');
 const app = express();
 app.disable('x-powered-by');
 
-app.get('/healthcheck', (serverRequest, serverResponse) => {
-	serverResponse
-		.status(200)
-		.type('text')
-		.send('ok')
-})
-
 app.get(/.*/, async (req, res) => {
-	console.log('puzzle in: '+JSON.stringify(req.headers));
+	console.log('puzzle in: ' + JSON.stringify(req.headers));
 
 	let path = ('' + req.path).trim().replace(/^\/+/gi, '');
 	path = decodeURI(path);
@@ -38,18 +31,18 @@ app.get(/.*/, async (req, res) => {
 
 			if (!(await file.exists())[0]) {
 				// try list view 
-				return await sendFileList(prefix+'/');
+				return await sendFileList(prefix + '/');
 			}
 
 			let [metadata] = (await file.getMetadata());
 			let { size, contentType, etag } = metadata;
 
 			//res.set('Cache-Control', 'public, max-age=' + (86400 * 7));
-			res.set('Cache-Control', 'public, max-age=0'); // <--- DELETE ME
-
-			res.set('Accept-Ranges', 'bytes');
-			res.set('Content-Type', contentType || 'application/octet-stream');
-			if (etag) res.set('ETag', etag);
+			res.set('cache-control', 'public, max-age=0'); // <--- DELETE ME
+			res.set('transfer-encoding', 'chunked');
+			res.set('accept-ranges', 'bytes');
+			res.set('content-type', contentType || 'application/octet-stream');
+			if (etag) res.set('etag', etag);
 
 			let range = req.range();
 			if (range) {
@@ -59,34 +52,24 @@ app.get(/.*/, async (req, res) => {
 				if ((start > end) || (end >= size)) {
 					// handle invalid range requests
 					res.status(416);
-					res.set('Content-Range', `bytes */${size}`);
+					res.set('content-range', `bytes */${size}`);
 					res.end();
 					return;
 				}
 
-				res.set('Content-Range', `bytes ${start}-${end}/${size}`);
-				res.set('Content-Length', end - start + 1);
+				res.set('content-range', `bytes ${start}-${end}/${size}`);
+				res.set('content-length', end - start + 1);
 				//console.log(res);
 				res.status(206);
-				console.log('puzzle out: 206a', JSON.stringify(res._headers));
+				console.log('puzzle out: 206', JSON.stringify(res._headers));
 				file.createReadStream({ start, end }).pipe(res);
 			} else {
 				// handle normal requests
 
-				//res.set('Content-Length', size);
-				//res.status(200);
-				//console.log('puzzle out: 200', JSON.stringify(res._headers));
-				//file.createReadStream().pipe(res);
-
-				let start = 0;
-				let end = 2*1024*1024;
-
-				res.set('Content-Range', `bytes ${start}-${end}/${size}`);
-				res.set('Content-Length', end - start + 1);
-				//console.log(res);
-				res.status(206);
-				console.log('puzzle out: 206b', JSON.stringify(res._headers));
-				file.createReadStream({ start, end }).pipe(res);
+				res.set('content-length', size);
+				res.status(200);
+				console.log('puzzle out: 200', JSON.stringify(res._headers));
+				file.createReadStream().pipe(res);
 			}
 		}
 
@@ -149,10 +132,6 @@ app.get(/.*/, async (req, res) => {
 		console.error({ path, error });
 		return res.status(500).type('text').send('Internal Server Error');
 	}
-})
-
-app.all(/.*/, async (req, res) => {
-	console.log('puzzle other in:', req.method, JSON.stringify(req.headers));
 })
 
 const PORT = process.env.PORT || 8080;
