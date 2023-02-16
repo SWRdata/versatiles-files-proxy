@@ -106,8 +106,8 @@ async function sendFileList(prefix, res) {
 
 			return `<tr><td><a href="${name}">${name}</a></td><td>${size}</td><td>${date}</td><tr>`;
 		}
-	})
-		.filter(f => f);
+	}).filter(f => f);
+
 	let html = [
 		'<html>',
 		'<head>',
@@ -126,5 +126,8 @@ async function sendFileList(prefix, res) {
 		'</body>',
 		'</html>',
 	].join('\n');
+
+	res.set('cache-control', 'public, max-age=300');
+	res.set('content-type', 'text/html');
 	res.status(200).send(html);
 }
