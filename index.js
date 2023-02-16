@@ -9,16 +9,14 @@ const app = express();
 app.disable('x-powered-by');
 
 app.get(/.*/, async (req, res) => {
-	let path = ('' + req.path).trim().replace(/^\/+/gi, '');
-	path = decodeURI(path);
-	let prefix = 'files/' + path;
+	let path = url2path(req.path);
 
 	try {
 
 		if ((path.length === 0) || path.endsWith('/')) {
-			await sendFileList(prefix, res);
+			await sendFileList(path, res);
 		} else {
-			await sendFile(prefix, req, res);
+			await sendFile(path, req, res);
 		}
 		return;
 
@@ -33,13 +31,13 @@ app.listen(PORT, () => console.log(`listening on port ${PORT}`));
 
 
 
-async function sendFile(prefix, req, res) {
+async function sendFile(path, req, res) {
 
-	let file = bucket.file(prefix);
+	let file = bucket.file(path);
 
 	if (!(await file.exists())[0]) {
 		// try list view 
-		return await sendFileList(prefix + '/', res);
+		return await sendFileList(path + '/', res);
 	}
 
 	let [metadata] = (await file.getMetadata());
@@ -77,51 +75,59 @@ async function sendFile(prefix, req, res) {
 	}
 }
 
-async function sendFileList(prefix, res) {
-	let [files] = await bucket.getFiles({ prefix, autoPaginate: false, maxResults: 1000 });
+async function sendFileList(path, res) {
+	let [files] = await bucket.getFiles({ prefix: path, autoPaginate: false, maxResults: 1000 });
 
 	if (files.length === 0) {
 		return res.status(404).type('text').send(`file not found`)
 	}
 
-	files = files.map(file => {
+
+	let table = [];
+	let url = path2url(path);
+	if (url.length > 1) addLine(path2url(path.replace(/\/[^\/]*\/$/, '/')), '..');
+
+	files.forEach(file => {
 		let name = file.name;
-		if (!name.startsWith(prefix)) return;
-		name = name.slice(prefix.length);
+		if (!name.startsWith(path)) return;
+		name = name.slice(path.length);
 		if (name.length === 0) return;
 
-		if (name.endsWith('/')) {
-			// handle folder
-			if (name.slice(0, -1).includes('/')) return;
-			return `<tr><td><a href="${name}">${name}</a></td><td></td><td></td><tr>`;
-		} else {
-			// handle file
-			if (name.includes('/')) return;
+		let url = path2url(file.name);
 
-			let size = parseInt(file.metadata.size, 10);
-			size = Math.round(size / (1024 * 1024)) + ' MB';
-
-			let date = file.metadata.timeCreated;
-			date = date.slice(0, 10) + ' ' + date.slice(11, 19);
-
-			return `<tr><td><a href="${name}">${name}</a></td><td>${size}</td><td>${date}</td><tr>`;
+		if (name.endsWith('/')) { // handle folder
+			if (name.slice(0, -1).includes('/')) return; // ignore stuff in subfolders
+			addLine(url, name);
+		} else { // handle file
+			if (name.includes('/')) return; // ignore stuff in subfolders
+			addLine(url, name, parseInt(file.metadata.size, 10), file.metadata.timeCreated);
 		}
-	}).filter(f => f);
+	});
+
+	function addLine(url, name, size, date) {
+		size = (size === undefined) ? '' : Math.ceil(size / 1048576).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '\'') + ' MB';
+		date = (date === undefined) ? '' : date.slice(0, 10) + ' ' + date.slice(11, 19);
+		table.push(`<tr><td><a href="${url}">${name}</a></td><td>${size}</td><td>${date}</td><tr>`);
+	}
 
 	let html = [
 		'<html>',
 		'<head>',
 		'<style>',
 		'body { font-family: sans-serif }',
-		'table { border-spacing: 2px; }',
+		'table { border-collapse: collapse; margin: 100px auto 0 }',
+		'table tr:nth-child(2) td { padding-top: 10px }',
 		'table th { border-bottom: 1px solid #aaa }',
-		'table td:nth-child(2) { text-align: right; padding: 0 20px }',
+		'table td { padding: 3px 10px;  }',
+		'table td:nth-child(1) { text-align: left; min-width: 200px }',
+		'table td:nth-child(2) { text-align: right; min-width: 100px }',
+		'table td:nth-child(3) { text-align: center; min-width: 160px }',
 		'</style>',
 		'</head>',
 		'<body>',
 		'<table>',
 		'<tr><th>filename</th><th>size</th><th>date</th></tr>',
-		...files,
+		...table,
 		'</table>',
 		'</body>',
 		'</html>',
@@ -130,4 +136,16 @@ async function sendFileList(prefix, res) {
 	res.set('cache-control', 'public, max-age=300');
 	res.set('content-type', 'text/html');
 	res.status(200).send(html);
+}
+
+function url2path(url) {
+	url = ('' + url).trim().replace(/^\/+/, '');
+	url = decodeURI(url);
+	return 'files/' + url;
+}
+
+function path2url(path) {
+	path = ('' + path).trim().replace(/^\/+/, '');
+	path = '/' + path.replace(/^files\//i, '');
+	return path;
 }
