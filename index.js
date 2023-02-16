@@ -39,7 +39,6 @@ app.get(/.*/, async (req, res) => {
 
 			//res.set('Cache-Control', 'public, max-age=' + (86400 * 7));
 			res.set('cache-control', 'public, max-age=0'); // <--- DELETE ME
-			res.set('transfer-encoding', 'chunked');
 			res.set('accept-ranges', 'bytes');
 			res.set('content-type', contentType || 'application/octet-stream');
 			if (etag) res.set('etag', etag);
@@ -66,7 +65,8 @@ app.get(/.*/, async (req, res) => {
 			} else {
 				// handle normal requests
 
-				res.set('content-length', size);
+				res.set('transfer-encoding', 'chunked');
+				//res.set('content-length', size);
 				res.status(200);
 				console.log('puzzle out: 200', JSON.stringify(res._headers));
 				file.createReadStream().pipe(res);
