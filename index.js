@@ -49,7 +49,7 @@ async function sendFileList(path, res) {
 			addLine(url, name);
 		} else { // handle file
 			if (name.includes('/')) return; // ignore stuff in subfolders
-			addLine('/files' + url, name, parseInt(file.metadata.size, 10), file.metadata.timeCreated);
+			addLine('/download' + url, name, parseInt(file.metadata.size, 10), file.metadata.timeCreated);
 		}
 	});
 
@@ -95,11 +95,11 @@ app.all('*', async (req, res) => {
 function url2path(url) {
 	url = ('' + url).trim().replace(/^\/+/, '');
 	url = decodeURI(url);
-	return 'files/' + url;
+	return 'download/' + url;
 }
 
 function path2url(path) {
 	path = ('' + path).trim().replace(/^\/+/, '');
-	path = '/' + path.replace(/^files\//i, '');
+	path = '/' + path.replace(/^download\//i, '');
 	return path;
 }
