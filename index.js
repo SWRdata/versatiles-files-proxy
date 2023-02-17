@@ -13,11 +13,11 @@ app.get(/.*/, async (req, res) => {
 
 	try {
 
-		if ((path.length === 0) || path.endsWith('/')) {
+		//if ((path.length === 0) || path.endsWith('/')) {
 			await sendFileList(path, res);
-		} else {
-			await sendFile(path, req, res);
-		}
+		//} else {
+		//	await sendFile(path, req, res);
+		//}
 		return;
 
 	} catch (error) {
@@ -30,7 +30,7 @@ const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => console.log(`listening on port ${PORT}`));
 
 
-
+/*
 async function sendFile(path, req, res) {
 	let file = bucket.file(path);
 
@@ -58,7 +58,6 @@ async function sendFile(path, req, res) {
 			// handle invalid range requests
 			console.log('sendFile: 416', path);
 			res.status(416);
-			res.set('content-range', `bytes */${size}`);
 			res.end();
 			return;
 		}
@@ -78,6 +77,7 @@ async function sendFile(path, req, res) {
 		file.createReadStream().pipe(res);
 	}
 }
+*/
 
 async function sendFileList(path, res) {
 	let [files] = await bucket.getFiles({ prefix: path, autoPaginate: false, maxResults: 10000 });
@@ -104,7 +104,7 @@ async function sendFileList(path, res) {
 			addLine(url, name);
 		} else { // handle file
 			if (name.includes('/')) return; // ignore stuff in subfolders
-			addLine(url, name, parseInt(file.metadata.size, 10), file.metadata.timeCreated);
+			addLine('/files' + url, name, parseInt(file.metadata.size, 10), file.metadata.timeCreated);
 		}
 	});
 
