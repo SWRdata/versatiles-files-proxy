@@ -42,7 +42,9 @@ async function sendFile(path, req, res) {
 	let [metadata] = (await file.getMetadata());
 	let { size, contentType, etag } = metadata;
 
-	res.set('cache-control', 'public, max-age=' + (86400 * 7));
+	//res.set('cache-control', 'public, max-age=' + (86400 * 7));
+	res.set('server', 'mk');
+	res.set('cache-control', 'public, max-age=60');
 	res.set('accept-ranges', 'bytes');
 	res.set('content-type', contentType || 'application/octet-stream');
 	if (etag) res.set('etag', etag);
@@ -140,6 +142,10 @@ async function sendFileList(path, res) {
 	res.set('content-type', 'text/html');
 	res.status(200).send(html);
 }
+
+app.all('*', async (req, res) => {
+	console.log('request', req.method, JSON.stringify(path.path)), JSON.stringify(path.headers);
+})
 
 function url2path(url) {
 	url = ('' + url).trim().replace(/^\/+/, '');
