@@ -13,11 +13,7 @@ app.get(/.*/, async (req, res) => {
 
 	try {
 
-		//if ((path.length === 0) || path.endsWith('/')) {
-			await sendFileList(path, res);
-		//} else {
-		//	await sendFile(path, req, res);
-		//}
+		await sendFileList(path, res);
 		return;
 
 	} catch (error) {
@@ -29,63 +25,12 @@ app.get(/.*/, async (req, res) => {
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => console.log(`listening on port ${PORT}`));
 
-
-/*
-async function sendFile(path, req, res) {
-	let file = bucket.file(path);
-
-	if (!(await file.exists())[0]) {
-		// try list view 
-		return await sendFileList(path + '/', res);
-	}
-
-	let [metadata] = (await file.getMetadata());
-	let { size, contentType, etag } = metadata;
-
-	//res.set('cache-control', 'public, max-age=' + (86400 * 7));
-	res.set('server', 'mk');
-	res.set('cache-control', 'public, max-age=60');
-	res.set('accept-ranges', 'bytes');
-	res.set('content-type', contentType || 'application/octet-stream');
-	if (etag) res.set('etag', etag);
-
-	let range = req.range();
-	if (range) {
-		// handle range requests
-		let { start, end } = range[0];
-
-		if ((start > end) || (end >= size)) {
-			// handle invalid range requests
-			console.log('sendFile: 416', path);
-			res.status(416);
-			res.end();
-			return;
-		}
-
-		console.log('sendFile: 206', path);
-		res.set('content-range', `bytes ${start}-${end}/${size}`);
-		res.set('content-length', end - start + 1);
-		//console.log(res);
-		res.status(206);
-		file.createReadStream({ start, end }).pipe(res);
-	} else {
-		// handle normal requests
-		console.log('sendFile: 200', path);
-
-		res.set('transfer-encoding', 'chunked');
-		res.status(200);
-		file.createReadStream().pipe(res);
-	}
-}
-*/
-
 async function sendFileList(path, res) {
 	let [files] = await bucket.getFiles({ prefix: path, autoPaginate: false, maxResults: 10000 });
 
 	if (files.length === 0) {
 		return res.status(404).type('text').send(`file not found`)
 	}
-
 
 	let table = [];
 	let url = path2url(path);
@@ -138,7 +83,7 @@ async function sendFileList(path, res) {
 	].join('\n');
 
 	console.log('sendFileList: 200', path);
-	res.set('cache-control', 'public, max-age=300');
+	res.set('cache-control', 'public, max-age=3600');
 	res.set('content-type', 'text/html');
 	res.status(200).send(html);
 }
