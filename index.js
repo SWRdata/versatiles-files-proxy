@@ -32,7 +32,7 @@ async function sendFileList(path, res) {
 		return res.status(404).type('text').send(`file not found`)
 	}
 
-	let table = [];
+	let table = new Map();
 	let url = path2url(path);
 	if (url.length > 1) addLine(path2url(path.replace(/\/[^\/]*\/$/, '/')), '..');
 
@@ -41,23 +41,36 @@ async function sendFileList(path, res) {
 		if (!name.startsWith(path)) return;
 		name = name.slice(path.length);
 		if (name.length === 0) return;
-
 		let url = path2url(file.name);
 
 		if (name.endsWith('/')) { // handle folder
 			if (name.slice(0, -1).includes('/')) return; // ignore stuff in subfolders
 			addLine(url, name);
 		} else { // handle file
-			if (name.includes('/')) return; // ignore stuff in subfolders
+			if (name.includes('/')) {
+				let suffix = name.replace(/^.*?\//, '');
+				if (!url.endsWith(suffix)) return;
+				addLine(url.slice(0, -suffix.length), name.slice(0, -suffix.length));
+				return; // ignore stuff in subfolders
+			}
 			addLine('/download' + url, name, parseInt(file.metadata.size, 10), file.metadata.timeCreated);
 		}
 	});
 
 	function addLine(url, name, size, date) {
+		if (table.has(url)) return;
+
 		size = (size === undefined) ? '' : Math.ceil(size / 1048576).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '\'') + ' MB';
 		date = (date === undefined) ? '' : date.slice(0, 10) + ' ' + date.slice(11, 19);
-		table.push(`<tr><td><a href="${url}">${name}</a></td><td>${size}</td><td>${date}</td><tr>`);
+		let order = url;
+		if (url.startsWith('.')) order = '0' + order;
+		else if (url.endsWith('/')) order = '1' + order;
+		else order = '2' + order;
+		table.set(url, { order, html: `<tr><td><a href="${url}">${name}</a></td><td>${size}</td><td>${date}</td><tr>` });
 	}
+
+	table = Array.from(table.values()).sort((a, b) => a.order < b.order ? -1 : 1);
+	table = table.map(e => e.html);
 
 	let html = [
 		'<html>',
