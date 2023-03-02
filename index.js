@@ -101,10 +101,6 @@ async function sendFileList(path, res) {
 	res.status(200).send(html);
 }
 
-app.all('*', async (req, res) => {
-	console.log('request', req.method, JSON.stringify(path.path)), JSON.stringify(path.headers);
-})
-
 function url2path(url) {
 	url = ('' + url).trim().replace(/^\/+/, '');
 	url = decodeURI(url);
