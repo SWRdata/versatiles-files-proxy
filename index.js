@@ -91,6 +91,8 @@ async function sendFileList(path, res) {
 		'<tr><th>filename</th><th>size</th><th>date</th></tr>',
 		...table,
 		'</table>',
+		'<div style="text-align:center; margin-top:200px">Kartendaten basieren auf OpenStreetMap<br>Bitte immer als Quelle angeben: "© OpenStreetMap-Mitwirkende"',
+		'</div>',
 		'</body>',
 		'</html>',
 	].join('\n');
