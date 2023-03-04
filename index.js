@@ -1,10 +1,13 @@
 'use strict';
 
 import express from 'express';
+import fs from 'fs';
 import { Storage } from '@google-cloud/storage';
+import Handlebars from 'handlebars';
 
 const storage = new Storage();
 const bucket = storage.bucket('versatiles');
+const template = Handlebars.compile(fs.readFileSync('index.html', 'utf8'));
 const app = express();
 app.disable('x-powered-by');
 
@@ -32,7 +35,7 @@ async function sendFileList(path, res) {
 		return res.status(404).type('text').send(`file not found`)
 	}
 
-	let table = new Map();
+	let entries = new Map();
 	let url = path2url(path);
 	if (url.length > 1) addLine(path2url(path.replace(/\/[^\/]*\/$/, '/')), '..');
 
@@ -58,45 +61,32 @@ async function sendFileList(path, res) {
 	});
 
 	function addLine(url, name, size, date) {
-		if (table.has(url)) return;
-
-		size = (size === undefined) ? '' : Math.ceil(size / 1048576).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '\'') + ' MB';
+		if (entries.has(url)) return;
+		
+		if (size === undefined) {
+			size = '';
+		} else if (size < 1000) {
+			size = size.toString()+' B'
+		} else if (size < 1024*1024) {
+			size = (size/(1024)).toFixed(2)+' KB'
+		} else if (size < 1024*1024*1024) {
+			size = (size/(1024*1024)).toFixed(2)+' MB'
+		} else {
+			size = (size/(1024*1024*1024)).toFixed(2)+' GB'
+		}
+		
 		date = (date === undefined) ? '' : date.slice(0, 10) + ' ' + date.slice(11, 19);
 		let order = url;
 		if (url.startsWith('.')) order = '0' + order;
 		else if (url.endsWith('/')) order = '1' + order;
 		else order = '2' + order;
-		table.set(url, { order, html: `<tr><td><a href="${url}">${name}</a></td><td>${size}</td><td>${date}</td><tr>` });
+		entries.set(url, { order, url, name, size, date });
 	}
 
-	table = Array.from(table.values()).sort((a, b) => a.order < b.order ? -1 : 1);
-	table = table.map(e => e.html);
-
-	let html = [
-		'<html>',
-		'<head>',
-		'<style>',
-		'body { font-family: sans-serif }',
-		'table { border-collapse: collapse; margin: 100px auto 0 }',
-		'table tr:nth-child(2) td { padding-top: 10px }',
-		'table th { border-bottom: 1px solid #aaa }',
-		'table td { padding: 3px 10px;  }',
-		'table td:nth-child(1) { text-align: left; min-width: 200px }',
-		'table td:nth-child(2) { text-align: right; min-width: 100px }',
-		'table td:nth-child(3) { text-align: center; min-width: 160px }',
-		'</style>',
-		'</head>',
-		'<body>',
-		'<table>',
-		'<tr><th>filename</th><th>size</th><th>date</th></tr>',
-		...table,
-		'</table>',
-		'<div style="text-align:center; margin-top:300px; font-size:10px; opacity:0.3">',
-		'Kartendaten basieren auf OpenStreetMap.<br>Als Quelle bitte immer angeben:<br>© OpenStreetMap-Mitwirkende',
-		'</div>',
-		'</body>',
-		'</html>',
-	].join('\n');
+	let html = template({
+		path,
+		entries: Array.from(entries.values()).sort((a, b) => a.order < b.order ? -1 : 1)
+	});
 
 	console.log('sendFileList: 200', path);
 	res.set('cache-control', 'public, max-age=3600');
